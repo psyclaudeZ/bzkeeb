@@ -52,6 +52,7 @@ private enum Mode {
     case grid(GridState)
     case precision(PrecisionState)
     case scroll
+    case help
 }
 
 private enum OverlayModel {
@@ -499,6 +500,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(NSMenuItem(title: "⌃⌥G  Grid → precision", action: nil, keyEquivalent: ""))
         menu.addItem(NSMenuItem(title: "⌃⌥P  Precision", action: nil, keyEquivalent: ""))
         menu.addItem(NSMenuItem(title: "⌃⌥S  Scroll", action: nil, keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: "⌃⌥/  Help", action: nil, keyEquivalent: ""))
         menu.addItem(.separator())
 
         let permission = NSMenuItem(title: "Check Accessibility permission", action: #selector(checkPermission), keyEquivalent: "")
@@ -545,6 +547,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
         case 5: return "grid"           // G
         case 35: return "precision"     // P
         case 1: return "scroll"         // S
+        case 44: return "help"           // /
         default: return nil
         }
     }
@@ -557,6 +560,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
         case "grid": beginGrid()
         case "precision": beginPrecision(at: MouseController.location())
         case "scroll": beginScroll()
+        case "help": showHelp()
         default: break
         }
     }
@@ -622,6 +626,17 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
     private func beginScroll() {
         mode = .scroll
         overlays.show(.pointer(MouseController.location(), "SCROLL  hjkl · u/d page · esc"))
+    }
+
+    private func showHelp() {
+        mode = .help
+        overlays.show(.status("""
+        BZKEEB
+        ⌃⌥F  hint click     ⌃⌥M  hint hover     ⌃⌥R  hint right-click
+        ⌃⌥G  grid           ⌃⌥P  precision      ⌃⌥S  scroll
+        precision: hjkl move · ↩ click/drop · r right-click · d double-click · v drag
+        esc closes any mode
+        """))
     }
 
     private func handleModeKey(_ event: CGEvent) {
@@ -735,6 +750,9 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
             case "u": MouseController.scroll(vertical: 600, horizontal: 0)
             default: NSSound.beep()
             }
+
+        case .help:
+            NSSound.beep()
         }
     }
 

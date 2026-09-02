@@ -15,6 +15,7 @@ open dist/BzKeeb.app
 - `⌃⌥G` grid → precision mode
 - `⌃⌥P` precision mode
 - `⌃⌥S` scroll mode
+- `⌃⌥/` help
 
 Precision mode: `hjkl` move, `return` click/drop, `r` right-click, `d` double-click, `v` drag, `esc` exit.
 
