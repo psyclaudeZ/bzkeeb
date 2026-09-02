@@ -33,3 +33,7 @@ z x c
 ```
 
 This is a plumbing prototype, not production software. It currently scans only the focused window, uses fixed shortcuts, and has intentionally basic overlays.
+
+### Development-signing caveat
+
+The prototype is ad-hoc signed because no local Apple code-signing identity is configured. macOS ties Accessibility approval to that exact build, so after changing and rebuilding the app you must remove and re-add BzKeeb in Accessibility settings. The build script refuses to overwrite the bundle while BzKeeb is running, which would otherwise invalidate the live process immediately.

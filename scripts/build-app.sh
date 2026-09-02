@@ -8,6 +8,11 @@ app_root="$repo_root/dist/BzKeeb.app"
 
 cd "$repo_root"
 
+if pgrep -x BzKeeb >/dev/null 2>&1; then
+    echo "BzKeeb is running. Quit it before rebuilding so macOS does not see an invalid in-place code signature." >&2
+    exit 1
+fi
+
 export CLANG_MODULE_CACHE_PATH="$build_root/clang-module-cache"
 export SWIFTPM_MODULECACHE_OVERRIDE="$build_root/swift-module-cache"
 
