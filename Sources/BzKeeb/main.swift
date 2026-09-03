@@ -2,6 +2,198 @@ import AppKit
 import ApplicationServices
 import CoreGraphics
 
+private enum ActivationModifier: String, CaseIterable {
+    case control
+    case option
+    case shift
+    case command
+    case fn
+
+    var eventFlag: CGEventFlags {
+        switch self {
+        case .control: return .maskControl
+        case .option: return .maskAlternate
+        case .shift: return .maskShift
+        case .command: return .maskCommand
+        case .fn: return .maskSecondaryFn
+        }
+    }
+
+    var glyph: String {
+        switch self {
+        case .control: return "⌃"
+        case .option: return "⌥"
+        case .shift: return "⇧"
+        case .command: return "⌘"
+        case .fn: return "fn"
+        }
+    }
+
+    var title: String {
+        switch self {
+        case .control: return "Control  ⌃"
+        case .option: return "Option  ⌥"
+        case .shift: return "Shift  ⇧"
+        case .command: return "Command  ⌘"
+        case .fn: return "Fn / Globe"
+        }
+    }
+}
+
+private struct AppConfig {
+    private static let storageKey = "activationModifiers"
+    static let fallback = AppConfig(activationModifiers: [.control, .option])
+
+    let activationModifiers: [ActivationModifier]
+
+    static func load() -> AppConfig {
+        guard let names = UserDefaults.standard.stringArray(forKey: storageKey),
+              !names.isEmpty else {
+            return .fallback
+        }
+
+        let modifiers = names.compactMap(ActivationModifier.init(rawValue:))
+        guard modifiers.count == names.count,
+              Set(modifiers.map(\.rawValue)).count == modifiers.count else {
+            return .fallback
+        }
+        return AppConfig(activationModifiers: modifiers)
+    }
+
+    func save() {
+        UserDefaults.standard.set(activationModifiers.map(\.rawValue), forKey: Self.storageKey)
+    }
+
+    var eventFlags: CGEventFlags {
+        activationModifiers.reduce(into: CGEventFlags()) { flags, modifier in
+            flags.insert(modifier.eventFlag)
+        }
+    }
+
+    var displayPrefix: String {
+        activationModifiers.map(\.glyph).joined()
+    }
+}
+
+private final class SettingsWindowController: NSWindowController {
+    private var checkboxes: [ActivationModifier: NSButton] = [:]
+    private let previewLabel = NSTextField(labelWithString: "")
+    private let saveButton = NSButton(title: "Save", target: nil, action: nil)
+    private let onSave: (AppConfig) -> Void
+
+    init(config: AppConfig, onSave: @escaping (AppConfig) -> Void) {
+        self.onSave = onSave
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 440, height: 300),
+            styleMask: [.titled, .closable],
+            backing: .buffered,
+            defer: false
+        )
+        super.init(window: window)
+
+        window.title = "BzKeeb Settings"
+        window.isReleasedWhenClosed = false
+        window.center()
+        buildContent()
+        setConfig(config)
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    func present(config: AppConfig) {
+        setConfig(config)
+        showWindow(nil)
+        window?.makeKeyAndOrderFront(nil)
+    }
+
+    private func buildContent() {
+        guard let contentView = window?.contentView else { return }
+
+        let title = NSTextField(labelWithString: "Activation prefix")
+        title.frame = NSRect(x: 24, y: 250, width: 392, height: 24)
+        title.font = .systemFont(ofSize: 17, weight: .semibold)
+        contentView.addSubview(title)
+
+        let explanation = NSTextField(wrappingLabelWithString: "Choose the modifier keys to hold before F, G, and the other commands.")
+        explanation.frame = NSRect(x: 24, y: 214, width: 392, height: 34)
+        explanation.textColor = .secondaryLabelColor
+        contentView.addSubview(explanation)
+
+        for (index, modifier) in ActivationModifier.allCases.enumerated() {
+            let button = NSButton(
+                checkboxWithTitle: modifier.title,
+                target: self,
+                action: #selector(selectionChanged)
+            )
+            let column = index % 2
+            let row = index / 2
+            button.frame = NSRect(
+                x: 24 + CGFloat(column * 196),
+                y: 178 - CGFloat(row * 34),
+                width: 190,
+                height: 24
+            )
+            checkboxes[modifier] = button
+            contentView.addSubview(button)
+        }
+
+        previewLabel.frame = NSRect(x: 24, y: 72, width: 392, height: 24)
+        previewLabel.font = .monospacedSystemFont(ofSize: 13, weight: .regular)
+        contentView.addSubview(previewLabel)
+
+        let cancelButton = NSButton(title: "Cancel", target: self, action: #selector(cancel))
+        cancelButton.frame = NSRect(x: 256, y: 20, width: 78, height: 32)
+        cancelButton.bezelStyle = .rounded
+        cancelButton.keyEquivalent = "\u{1b}"
+        contentView.addSubview(cancelButton)
+
+        saveButton.target = self
+        saveButton.action = #selector(save)
+        saveButton.frame = NSRect(x: 342, y: 20, width: 78, height: 32)
+        saveButton.bezelStyle = .rounded
+        saveButton.keyEquivalent = "\r"
+        contentView.addSubview(saveButton)
+    }
+
+    private func setConfig(_ config: AppConfig) {
+        for modifier in ActivationModifier.allCases {
+            checkboxes[modifier]?.state = config.activationModifiers.contains(modifier) ? .on : .off
+        }
+        updatePreview()
+    }
+
+    private var selectedModifiers: [ActivationModifier] {
+        ActivationModifier.allCases.filter { checkboxes[$0]?.state == .on }
+    }
+
+    @objc private func selectionChanged() {
+        updatePreview()
+    }
+
+    private func updatePreview() {
+        let modifiers = selectedModifiers
+        saveButton.isEnabled = !modifiers.isEmpty
+        let prefix = modifiers.map(\.glyph).joined()
+        previewLabel.stringValue = modifiers.isEmpty
+            ? "Select at least one modifier."
+            : "Preview:  \(prefix)F  click hints    \(prefix)G  grid"
+        previewLabel.textColor = modifiers.isEmpty ? .systemRed : .labelColor
+    }
+
+    @objc private func save() {
+        let modifiers = selectedModifiers
+        guard !modifiers.isEmpty else { return }
+        onSave(AppConfig(activationModifiers: modifiers))
+        close()
+    }
+
+    @objc private func cancel() {
+        close()
+    }
+}
+
 private enum HintAction: Equatable {
     case click
     case hover
@@ -438,10 +630,12 @@ private enum AccessibilityScanner {
 
 private final class AppDelegate: NSObject, NSApplicationDelegate {
     private let overlays = OverlayController()
+    private var config = AppConfig.load()
     private var mode: Mode = .idle
     private var eventTap: CFMachPort?
     private var eventTapSource: CFRunLoopSource?
     private var statusItem: NSStatusItem?
+    private var settingsWindowController: SettingsWindowController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -488,21 +682,29 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
     private func installMenuBarItem() {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         item.button?.title = "BK"
+        item.menu = makeMenu()
+        statusItem = item
+    }
 
+    private func makeMenu() -> NSMenu {
+        let prefix = config.displayPrefix
         let menu = NSMenu()
         let title = NSMenuItem(title: "BzKeeb plumbing prototype", action: nil, keyEquivalent: "")
         title.isEnabled = false
         menu.addItem(title)
         menu.addItem(.separator())
-        menu.addItem(NSMenuItem(title: "⌃⌥F  Hint click", action: nil, keyEquivalent: ""))
-        menu.addItem(NSMenuItem(title: "⌃⌥M  Hint hover", action: nil, keyEquivalent: ""))
-        menu.addItem(NSMenuItem(title: "⌃⌥R  Hint right-click", action: nil, keyEquivalent: ""))
-        menu.addItem(NSMenuItem(title: "⌃⌥G  Grid → precision", action: nil, keyEquivalent: ""))
-        menu.addItem(NSMenuItem(title: "⌃⌥P  Precision", action: nil, keyEquivalent: ""))
-        menu.addItem(NSMenuItem(title: "⌃⌥S  Scroll", action: nil, keyEquivalent: ""))
-        menu.addItem(NSMenuItem(title: "⌃⌥/  Help", action: nil, keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: "\(prefix)F  Hint click", action: nil, keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: "\(prefix)M  Hint hover", action: nil, keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: "\(prefix)R  Hint right-click", action: nil, keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: "\(prefix)G  Grid → precision", action: nil, keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: "\(prefix)P  Precision", action: nil, keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: "\(prefix)S  Scroll", action: nil, keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: "\(prefix)/  Help", action: nil, keyEquivalent: ""))
         menu.addItem(.separator())
 
+        let settings = NSMenuItem(title: "Settings…", action: #selector(showSettings), keyEquivalent: ",")
+        settings.target = self
+        menu.addItem(settings)
         let permission = NSMenuItem(title: "Check Accessibility permission", action: #selector(checkPermission), keyEquivalent: "")
         permission.target = self
         menu.addItem(permission)
@@ -510,8 +712,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
         quit.target = self
         menu.addItem(quit)
 
-        item.menu = menu
-        statusItem = item
+        return menu
     }
 
     private func installEventTap() {
@@ -538,8 +739,8 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func globalCommand(for event: CGEvent) -> String? {
-        let relevant: CGEventFlags = [.maskCommand, .maskShift, .maskControl, .maskAlternate]
-        guard event.flags.intersection(relevant) == [.maskControl, .maskAlternate] else { return nil }
+        let relevant: CGEventFlags = [.maskCommand, .maskShift, .maskControl, .maskAlternate, .maskSecondaryFn]
+        guard event.flags.intersection(relevant) == config.eventFlags else { return nil }
         switch event.getIntegerValueField(.keyboardEventKeycode) {
         case 3: return "hint-click"     // F
         case 46: return "hint-hover"    // M
@@ -592,7 +793,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
     private func finishHintScan(_ targets: [DiscoveredTarget], action: HintAction) {
         guard case .scanning(let currentAction) = mode, currentAction == action else { return }
         guard !targets.isEmpty else {
-            overlays.show(.status("NO TARGETS — TRY ⌃⌥G"))
+            overlays.show(.status("NO TARGETS — TRY \(config.displayPrefix)G"))
             mode = .idle
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { [weak self] in
                 if case .idle = self?.mode { self?.overlays.hide() }
@@ -629,11 +830,12 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func showHelp() {
+        let prefix = config.displayPrefix
         mode = .help
         overlays.show(.status("""
         BZKEEB
-        ⌃⌥F  hint click     ⌃⌥M  hint hover     ⌃⌥R  hint right-click
-        ⌃⌥G  grid           ⌃⌥P  precision      ⌃⌥S  scroll
+        \(prefix)F  hint click     \(prefix)M  hint hover     \(prefix)R  hint right-click
+        \(prefix)G  grid           \(prefix)P  precision      \(prefix)S  scroll
         precision: hjkl move · ↩ click/drop · r right-click · d double-click · v drag
         esc closes any mode
         """))
@@ -792,6 +994,27 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
             alert.runModal()
         } else {
             showPermissionAlert()
+        }
+    }
+
+    @objc private func showSettings() {
+        cancelCurrentMode()
+        if settingsWindowController == nil {
+            settingsWindowController = SettingsWindowController(config: config) { [weak self] newConfig in
+                self?.applyConfig(newConfig)
+            }
+        }
+        NSApp.activate(ignoringOtherApps: true)
+        settingsWindowController?.present(config: config)
+    }
+
+    private func applyConfig(_ newConfig: AppConfig) {
+        newConfig.save()
+        config = newConfig
+        statusItem?.menu = makeMenu()
+        overlays.show(.status("HOTKEY PREFIX: \(config.displayPrefix)"))
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { [weak self] in
+            if case .idle = self?.mode { self?.overlays.hide() }
         }
     }
 
