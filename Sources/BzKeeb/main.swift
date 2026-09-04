@@ -143,6 +143,12 @@ private final class SettingsWindowController: NSWindowController {
         previewLabel.font = .monospacedSystemFont(ofSize: 13, weight: .regular)
         contentView.addSubview(previewLabel)
 
+        let restartNotice = NSTextField(labelWithString: "The new prefix will work only after restarting BzKeeb.")
+        restartNotice.frame = NSRect(x: 24, y: 54, width: 392, height: 18)
+        restartNotice.font = .systemFont(ofSize: 12)
+        restartNotice.textColor = .secondaryLabelColor
+        contentView.addSubview(restartNotice)
+
         let cancelButton = NSButton(title: "Cancel", target: self, action: #selector(cancel))
         cancelButton.frame = NSRect(x: 256, y: 20, width: 78, height: 32)
         cancelButton.bezelStyle = .rounded
@@ -702,7 +708,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(NSMenuItem(title: "\(prefix)/  Help", action: nil, keyEquivalent: ""))
         menu.addItem(.separator())
 
-        let settings = NSMenuItem(title: "Settings…", action: #selector(showSettings), keyEquivalent: ",")
+        let settings = NSMenuItem(title: "Settings", action: #selector(showSettings), keyEquivalent: ",")
         settings.target = self
         menu.addItem(settings)
         let permission = NSMenuItem(title: "Check Accessibility permission", action: #selector(checkPermission), keyEquivalent: "")
@@ -1000,19 +1006,17 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func showSettings() {
         cancelCurrentMode()
         if settingsWindowController == nil {
-            settingsWindowController = SettingsWindowController(config: config) { [weak self] newConfig in
-                self?.applyConfig(newConfig)
+            settingsWindowController = SettingsWindowController(config: AppConfig.load()) { [weak self] newConfig in
+                self?.saveConfig(newConfig)
             }
         }
         NSApp.activate(ignoringOtherApps: true)
-        settingsWindowController?.present(config: config)
+        settingsWindowController?.present(config: AppConfig.load())
     }
 
-    private func applyConfig(_ newConfig: AppConfig) {
+    private func saveConfig(_ newConfig: AppConfig) {
         newConfig.save()
-        config = newConfig
-        statusItem?.menu = makeMenu()
-        overlays.show(.status("HOTKEY PREFIX: \(config.displayPrefix)"))
+        overlays.show(.status("PREFIX SAVED — RESTART BZKEEB"))
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { [weak self] in
             if case .idle = self?.mode { self?.overlays.hide() }
         }

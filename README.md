@@ -21,6 +21,6 @@ Default prefix: `⌃⌥` (Control-Option).
 
 Precision mode: `hjkl` move, `return` click/drop, `r` right-click, `d` double-click, `v` drag, `esc` exit.
 
-Change the prefix in `BK` → `Settings…`.
+Change the prefix in `BK` → `Settings`, then restart the app.
 
 Built with [Codex](https://github.com/openai/codex).
