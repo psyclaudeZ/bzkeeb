@@ -700,7 +700,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(title)
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "\(prefix)F  Hint click", action: nil, keyEquivalent: ""))
-        menu.addItem(NSMenuItem(title: "\(prefix)M  Hint hover", action: nil, keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: "\(prefix)H  Hint hover", action: nil, keyEquivalent: ""))
         menu.addItem(NSMenuItem(title: "\(prefix)R  Hint right-click", action: nil, keyEquivalent: ""))
         menu.addItem(NSMenuItem(title: "\(prefix)G  Grid → precision", action: nil, keyEquivalent: ""))
         menu.addItem(NSMenuItem(title: "\(prefix)P  Precision", action: nil, keyEquivalent: ""))
@@ -749,7 +749,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
         guard event.flags.intersection(relevant) == config.eventFlags else { return nil }
         switch event.getIntegerValueField(.keyboardEventKeycode) {
         case 3: return "hint-click"     // F
-        case 46: return "hint-hover"    // M
+        case 4: return "hint-hover"     // H
         case 15: return "hint-right"    // R
         case 5: return "grid"           // G
         case 35: return "precision"     // P
@@ -840,7 +840,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
         mode = .help
         overlays.show(.status("""
         BZKEEB
-        \(prefix)F  hint click     \(prefix)M  hint hover     \(prefix)R  hint right-click
+        \(prefix)F  hint click     \(prefix)H  hint hover     \(prefix)R  hint right-click
         \(prefix)G  grid           \(prefix)P  precision      \(prefix)S  scroll
         precision: hjkl move · ↩ click/drop · r right-click · d double-click · v drag
         esc closes any mode
