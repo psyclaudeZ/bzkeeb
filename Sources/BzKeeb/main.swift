@@ -640,12 +640,21 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
     private var mode: Mode = .idle
     private var eventTap: CFMachPort?
     private var eventTapSource: CFRunLoopSource?
+    private var permissionRetryTimer: Timer?
     private var statusItem: NSStatusItem?
     private var settingsWindowController: SettingsWindowController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
         installMenuBarItem()
+
+        let timer = Timer(timeInterval: 2, repeats: true) { [weak self] _ in
+            guard let self, self.eventTap == nil,
+                  self.accessibilityIsTrusted(prompt: false) else { return }
+            self.installEventTap(reportFailure: false)
+        }
+        permissionRetryTimer = timer
+        RunLoop.main.add(timer, forMode: .common)
 
         if accessibilityIsTrusted(prompt: true) {
             installEventTap()
@@ -655,6 +664,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        permissionRetryTimer?.invalidate()
         cancelCurrentMode()
         if let eventTapSource {
             CFRunLoopRemoveSource(CFRunLoopGetMain(), eventTapSource, .commonModes)
@@ -721,7 +731,8 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
         return menu
     }
 
-    private func installEventTap() {
+    @discardableResult
+    private func installEventTap(reportFailure: Bool = true) -> Bool {
         let mask = (CGEventMask(1) << CGEventType.keyDown.rawValue)
             | (CGEventMask(1) << CGEventType.keyUp.rawValue)
         let pointer = Unmanaged.passUnretained(self).toOpaque()
@@ -733,8 +744,8 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
             callback: eventTapCallback,
             userInfo: pointer
         ) else {
-            showEventTapAlert()
-            return
+            if reportFailure { showEventTapAlert() }
+            return false
         }
 
         eventTap = tap
@@ -742,6 +753,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
         eventTapSource = source
         CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
         CGEvent.tapEnable(tap: tap, enable: true)
+        return CGEvent.tapIsEnabled(tap: tap)
     }
 
     private func globalCommand(for event: CGEvent) -> String? {
@@ -832,7 +844,11 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func beginScroll() {
         mode = .scroll
-        overlays.show(.pointer(MouseController.location(), "SCROLL  hjkl · u/d page · esc"))
+        showScrollPointer(at: MouseController.location())
+    }
+
+    private func showScrollPointer(at point: CGPoint) {
+        overlays.show(.pointer(point, "SCROLL  hjkl scroll · ⇧hjkl move · u/d page · esc"))
     }
 
     private func showHelp() {
@@ -843,6 +859,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
         \(prefix)F  hint click     \(prefix)H  hint hover     \(prefix)R  hint right-click
         \(prefix)G  grid           \(prefix)P  precision      \(prefix)S  scroll
         precision: hjkl move · ↩ click/drop · r right-click · d double-click · v drag
+        scroll: hjkl scroll · ⇧hjkl move pointer · u/d page
         esc closes any mode
         """))
     }
@@ -948,7 +965,21 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
 
         case .scroll:
             guard let key = keyString(event) else { return }
-            let amount: Int32 = event.flags.contains(.maskShift) ? 240 : 70
+            if event.flags.contains(.maskShift), ["h", "j", "k", "l"].contains(key) {
+                var point = MouseController.location()
+                let step: CGFloat = 40
+                switch key {
+                case "h": point.x -= step
+                case "j": point.y += step
+                case "k": point.y -= step
+                case "l": point.x += step
+                default: break
+                }
+                MouseController.move(to: point)
+                showScrollPointer(at: point)
+                return
+            }
+            let amount: Int32 = 70
             switch key {
             case "j": MouseController.scroll(vertical: -amount, horizontal: 0)
             case "k": MouseController.scroll(vertical: amount, horizontal: 0)
@@ -993,7 +1024,14 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func checkPermission() {
         if accessibilityIsTrusted(prompt: true) {
-            if eventTap == nil { installEventTap() }
+            if eventTap == nil, !installEventTap() { return }
+            if let eventTap {
+                CGEvent.tapEnable(tap: eventTap, enable: true)
+                guard CGEvent.tapIsEnabled(tap: eventTap) else {
+                    showEventTapAlert()
+                    return
+                }
+            }
             let alert = NSAlert()
             alert.messageText = "Accessibility is enabled"
             alert.informativeText = "The BzKeeb hotkeys are ready."
