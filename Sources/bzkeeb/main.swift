@@ -91,7 +91,7 @@ private final class SettingsWindowController: NSWindowController {
         )
         super.init(window: window)
 
-        window.title = "BzKeeb Settings"
+        window.title = "bzkeeb Settings"
         window.isReleasedWhenClosed = false
         window.center()
         buildContent()
@@ -143,7 +143,7 @@ private final class SettingsWindowController: NSWindowController {
         previewLabel.font = .monospacedSystemFont(ofSize: 13, weight: .regular)
         contentView.addSubview(previewLabel)
 
-        let restartNotice = NSTextField(labelWithString: "The new prefix will work only after restarting BzKeeb.")
+        let restartNotice = NSTextField(labelWithString: "The new prefix will work only after restarting bzkeeb.")
         restartNotice.frame = NSRect(x: 24, y: 54, width: 392, height: 18)
         restartNotice.font = .systemFont(ofSize: 12)
         restartNotice.textColor = .secondaryLabelColor
@@ -705,7 +705,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
     private func makeMenu() -> NSMenu {
         let prefix = config.displayPrefix
         let menu = NSMenu()
-        let title = NSMenuItem(title: "BzKeeb plumbing prototype", action: nil, keyEquivalent: "")
+        let title = NSMenuItem(title: "bzkeeb plumbing prototype", action: nil, keyEquivalent: "")
         title.isEnabled = false
         menu.addItem(title)
         menu.addItem(.separator())
@@ -724,7 +724,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
         let permission = NSMenuItem(title: "Check Accessibility permission", action: #selector(checkPermission), keyEquivalent: "")
         permission.target = self
         menu.addItem(permission)
-        let quit = NSMenuItem(title: "Quit BzKeeb", action: #selector(quit), keyEquivalent: "q")
+        let quit = NSMenuItem(title: "Quit bzkeeb", action: #selector(quit), keyEquivalent: "q")
         quit.target = self
         menu.addItem(quit)
 
@@ -855,7 +855,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
         let prefix = config.displayPrefix
         mode = .help
         overlays.show(.status("""
-        BZKEEB
+        bzkeeb
         \(prefix)F  hint click     \(prefix)H  hint hover     \(prefix)R  hint right-click
         \(prefix)G  grid           \(prefix)P  precision      \(prefix)S  scroll
         precision: hjkl move · ↩ click/drop · r right-click · d double-click · v drag
@@ -1034,7 +1034,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             let alert = NSAlert()
             alert.messageText = "Accessibility is enabled"
-            alert.informativeText = "The BzKeeb hotkeys are ready."
+            alert.informativeText = "The bzkeeb hotkeys are ready."
             alert.runModal()
         } else {
             showPermissionAlert()
@@ -1054,7 +1054,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func saveConfig(_ newConfig: AppConfig) {
         newConfig.save()
-        overlays.show(.status("PREFIX SAVED — RESTART BZKEEB"))
+        overlays.show(.status("PREFIX SAVED — RESTART bzkeeb"))
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { [weak self] in
             if case .idle = self?.mode { self?.overlays.hide() }
         }
@@ -1068,8 +1068,8 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.activate(ignoringOtherApps: true)
         let alert = NSAlert()
         alert.alertStyle = .informational
-        alert.messageText = "BzKeeb needs Accessibility access"
-        alert.informativeText = "Enable BzKeeb in System Settings → Privacy & Security → Accessibility, then use the BK menu item to check again."
+        alert.messageText = "bzkeeb needs Accessibility access"
+        alert.informativeText = "Enable bzkeeb in System Settings → Privacy & Security → Accessibility, then use the BK menu item to check again."
         alert.addButton(withTitle: "OK")
         alert.runModal()
     }
@@ -1079,7 +1079,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
         let alert = NSAlert()
         alert.alertStyle = .warning
         alert.messageText = "Could not install the global keyboard listener"
-        alert.informativeText = "Toggle BzKeeb off and on in Accessibility settings, then check permission from the BK menu."
+        alert.informativeText = "Toggle bzkeeb off and on in Accessibility settings, then check permission from the BK menu."
         alert.runModal()
     }
 }

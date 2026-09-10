@@ -3,15 +3,15 @@
 import PackageDescription
 
 let package = Package(
-    name: "BzKeeb",
+    name: "bzkeeb",
     platforms: [
         .macOS(.v13),
     ],
     products: [
-        .executable(name: "BzKeeb", targets: ["BzKeeb"]),
+        .executable(name: "bzkeeb", targets: ["bzkeeb"]),
     ],
     targets: [
-        .executableTarget(name: "BzKeeb"),
+        .executableTarget(name: "bzkeeb"),
     ],
     swiftLanguageModes: [.v5]
 )

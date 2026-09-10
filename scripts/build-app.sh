@@ -4,12 +4,12 @@ set -euo pipefail
 
 repo_root="${0:A:h:h}"
 build_root="$repo_root/.build"
-app_root="$repo_root/dist/BzKeeb.app"
+app_root="$repo_root/dist/bzkeeb.app"
 
 cd "$repo_root"
 
-if pgrep -x BzKeeb >/dev/null 2>&1; then
-    echo "BzKeeb is running. Quit it before rebuilding so macOS does not see an invalid in-place code signature." >&2
+if pgrep -ix bzkeeb >/dev/null 2>&1; then
+    echo "bzkeeb is running. Quit it before rebuilding so macOS does not see an invalid in-place code signature." >&2
     exit 1
 fi
 
@@ -20,7 +20,7 @@ swift build -c debug --disable-sandbox
 
 mkdir -p "$app_root/Contents/MacOS"
 cp "$repo_root/Support/Info.plist" "$app_root/Contents/Info.plist"
-cp "$build_root/debug/BzKeeb" "$app_root/Contents/MacOS/BzKeeb"
+cp "$build_root/debug/bzkeeb" "$app_root/Contents/MacOS/bzkeeb"
 
 codesign --force --deep --sign - "$app_root"
 
