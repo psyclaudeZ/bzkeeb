@@ -20,7 +20,15 @@ swift build -c debug --disable-sandbox
 
 mkdir -p "$app_root/Contents/MacOS"
 cp "$repo_root/Support/Info.plist" "$app_root/Contents/Info.plist"
+# Rename the prior mixed-case executable through a temporary name on
+# case-insensitive filesystems so the bundle records the lowercase name.
+old_executable="$app_root/Contents/MacOS/BzKeeb"
+staged_executable="$app_root/Contents/MacOS/.bzkeeb-old"
+if [ -e "$old_executable" ]; then
+    mv "$old_executable" "$staged_executable"
+fi
 cp "$build_root/debug/bzkeeb" "$app_root/Contents/MacOS/bzkeeb"
+rm -f "$staged_executable"
 
 codesign --force --deep --sign - "$app_root"
 

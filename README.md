@@ -12,7 +12,7 @@ open dist/bzkeeb.app
 Default prefix: `⌃⌥` (Control-Option).
 
 - `⌃⌥F` hints → click
-- `⌃⌥H` hints → hover
+- `⌃⌥O` hints → hover
 - `⌃⌥R` hints → right-click
 - `⌃⌥G` grid → precision mode
 - `⌃⌥P` precision mode
