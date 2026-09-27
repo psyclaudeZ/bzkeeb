@@ -45,23 +45,25 @@ private struct AppConfig {
     static let fallback = AppConfig(activationModifiers: [.control, .option])
 
     let activationModifiers: [ActivationModifier]
+    var cursorEffect: CursorEffect = .waves
+    var cursorEffectsEnabled = true
 
     static func load() -> AppConfig {
-        guard let names = UserDefaults.standard.stringArray(forKey: storageKey),
-              !names.isEmpty else {
-            return .fallback
-        }
-
+        let names = UserDefaults.standard.stringArray(forKey: storageKey) ?? []
         let modifiers = names.compactMap(ActivationModifier.init(rawValue:))
-        guard modifiers.count == names.count,
-              Set(modifiers.map(\.rawValue)).count == modifiers.count else {
-            return .fallback
-        }
-        return AppConfig(activationModifiers: modifiers)
+        let valid = !modifiers.isEmpty && modifiers.count == names.count
+            && Set(modifiers.map(\.rawValue)).count == modifiers.count
+        return AppConfig(
+            activationModifiers: valid ? modifiers : fallback.activationModifiers,
+            cursorEffect: CursorEffect(rawValue: UserDefaults.standard.string(forKey: "cursorEffect") ?? "") ?? .waves,
+            cursorEffectsEnabled: UserDefaults.standard.object(forKey: "cursorEffectsEnabled") as? Bool ?? true
+        )
     }
 
     func save() {
         UserDefaults.standard.set(activationModifiers.map(\.rawValue), forKey: Self.storageKey)
+        UserDefaults.standard.set(cursorEffect.rawValue, forKey: "cursorEffect")
+        UserDefaults.standard.set(cursorEffectsEnabled, forKey: "cursorEffectsEnabled")
     }
 
     var eventFlags: CGEventFlags {
@@ -75,16 +77,22 @@ private struct AppConfig {
     }
 }
 
-private final class SettingsWindowController: NSWindowController {
+private final class SettingsWindowController: NSWindowController, NSWindowDelegate {
     private var checkboxes: [ActivationModifier: NSButton] = [:]
     private let previewLabel = NSTextField(labelWithString: "")
     private let saveButton = NSButton(title: "Save", target: nil, action: nil)
     private let onSave: (AppConfig) -> Void
+    private let effectEnabled = NSButton(checkboxWithTitle: "Show effect while a mode is active", target: nil, action: nil)
+    private var effectButtons: [NSButton] = []
+    private var effectPreviews: [CursorEffectView] = []
+    private var selectedEffect: CursorEffect = .waves
+    private var previewTimer: Timer?
+    private let cursorPreview = CursorEffectController()
 
     init(config: AppConfig, onSave: @escaping (AppConfig) -> Void) {
         self.onSave = onSave
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 440, height: 300),
+            contentRect: NSRect(x: 0, y: 0, width: 440, height: 620),
             styleMask: [.titled, .closable],
             backing: .buffered,
             defer: false
@@ -93,6 +101,7 @@ private final class SettingsWindowController: NSWindowController {
 
         window.title = "bzkeeb Settings"
         window.isReleasedWhenClosed = false
+        window.delegate = self
         window.center()
         buildContent()
         setConfig(config)
@@ -106,6 +115,22 @@ private final class SettingsWindowController: NSWindowController {
         setConfig(config)
         showWindow(nil)
         window?.makeKeyAndOrderFront(nil)
+        previewTimer?.invalidate()
+        let timer = Timer(timeInterval: 1 / 30, repeats: true) { [weak self] _ in
+            guard let self, self.window?.isVisible == true else { return }
+            for preview in self.effectPreviews {
+                preview.time = ProcessInfo.processInfo.systemUptime
+                preview.needsDisplay = true
+            }
+        }
+        previewTimer = timer
+        RunLoop.main.add(timer, forMode: .common)
+    }
+
+    func windowWillClose(_ notification: Notification) {
+        previewTimer?.invalidate()
+        previewTimer = nil
+        cursorPreview.hide()
     }
 
     private func buildContent() {
@@ -143,11 +168,46 @@ private final class SettingsWindowController: NSWindowController {
         previewLabel.font = .monospacedSystemFont(ofSize: 13, weight: .regular)
         contentView.addSubview(previewLabel)
 
-        let restartNotice = NSTextField(labelWithString: "The new prefix will work only after restarting bzkeeb.")
+        let restartNotice = NSTextField(labelWithString: "Changes apply immediately when saved.")
         restartNotice.frame = NSRect(x: 24, y: 54, width: 392, height: 18)
         restartNotice.font = .systemFont(ofSize: 12)
         restartNotice.textColor = .secondaryLabelColor
         contentView.addSubview(restartNotice)
+
+        for view in contentView.subviews {
+            view.setFrameOrigin(CGPoint(x: view.frame.minX, y: view.frame.minY + 320))
+        }
+        let effectsTitle = NSTextField(labelWithString: "Cursor effects")
+        effectsTitle.font = .systemFont(ofSize: 17, weight: .semibold)
+        effectsTitle.frame = NSRect(x: 24, y: 326, width: 392, height: 24)
+        contentView.addSubview(effectsTitle)
+        let labels = ["Waves", "Expand", "Orbit", "Halo", "Sparks"]
+        for (index, effect) in CursorEffect.allCases.enumerated() {
+            let x = 24 + CGFloat(index) * 79
+            let preview = CursorEffectView(frame: NSRect(x: x, y: 220, width: 76, height: 96))
+            preview.effect = effect
+            preview.showPointer = true
+            preview.toolTip = effect.title
+            effectPreviews.append(preview)
+            contentView.addSubview(preview)
+            let button = NSButton(radioButtonWithTitle: labels[index], target: self, action: #selector(effectSelected(_:)))
+            button.tag = index
+            button.frame = NSRect(x: x, y: 194, width: 79, height: 24)
+            button.setAccessibilityLabel(effect.title)
+            effectButtons.append(button)
+            contentView.addSubview(button)
+        }
+        effectEnabled.frame = NSRect(x: 24, y: 155, width: 392, height: 24)
+        contentView.addSubview(effectEnabled)
+        let effectNotice = NSTextField(wrappingLabelWithString: "Follows your pointer in hint, grid, precision and scroll modes. Escape ends the mode. Respects Reduce Motion.")
+        effectNotice.frame = NSRect(x: 24, y: 102, width: 392, height: 44)
+        effectNotice.font = .systemFont(ofSize: 12)
+        effectNotice.textColor = .secondaryLabelColor
+        contentView.addSubview(effectNotice)
+        let testButton = NSButton(title: "Test at cursor · 5 seconds", target: self, action: #selector(testEffect))
+        testButton.bezelStyle = .rounded
+        testButton.frame = NSRect(x: 24, y: 65, width: 225, height: 32)
+        contentView.addSubview(testButton)
 
         let cancelButton = NSButton(title: "Cancel", target: self, action: #selector(cancel))
         cancelButton.frame = NSRect(x: 256, y: 20, width: 78, height: 32)
@@ -164,6 +224,9 @@ private final class SettingsWindowController: NSWindowController {
     }
 
     private func setConfig(_ config: AppConfig) {
+        selectedEffect = config.cursorEffect
+        effectEnabled.state = config.cursorEffectsEnabled ? .on : .off
+        updateEffectSelection()
         for modifier in ActivationModifier.allCases {
             checkboxes[modifier]?.state = config.activationModifiers.contains(modifier) ? .on : .off
         }
@@ -176,6 +239,22 @@ private final class SettingsWindowController: NSWindowController {
 
     @objc private func selectionChanged() {
         updatePreview()
+    }
+
+    private func updateEffectSelection() {
+        for button in effectButtons {
+            button.state = CursorEffect.allCases[button.tag] == selectedEffect ? .on : .off
+        }
+    }
+
+    @objc private func effectSelected(_ sender: NSButton) {
+        selectedEffect = CursorEffect.allCases[sender.tag]
+        cursorPreview.hide()
+        updateEffectSelection()
+    }
+
+    @objc private func testEffect() {
+        cursorPreview.show(selectedEffect, duration: 5)
     }
 
     private func updatePreview() {
@@ -191,7 +270,8 @@ private final class SettingsWindowController: NSWindowController {
     @objc private func save() {
         let modifiers = selectedModifiers
         guard !modifiers.isEmpty else { return }
-        onSave(AppConfig(activationModifiers: modifiers))
+        onSave(AppConfig(activationModifiers: modifiers, cursorEffect: selectedEffect,
+                         cursorEffectsEnabled: effectEnabled.state == .on))
         close()
     }
 
@@ -636,8 +716,17 @@ private enum AccessibilityScanner {
 
 private final class AppDelegate: NSObject, NSApplicationDelegate {
     private let overlays = OverlayController()
+    private let cursorEffects = CursorEffectController()
     private var config = AppConfig.load()
-    private var mode: Mode = .idle
+    private var mode: Mode = .idle {
+        didSet {
+            switch mode {
+            case .idle, .help: cursorEffects.hide()
+            default:
+                if config.cursorEffectsEnabled { cursorEffects.show(config.cursorEffect) }
+            }
+        }
+    }
     private var eventTap: CFMachPort?
     private var eventTapSource: CFRunLoopSource?
     private var permissionRetryTimer: Timer?
@@ -1054,7 +1143,9 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func saveConfig(_ newConfig: AppConfig) {
         newConfig.save()
-        overlays.show(.status("PREFIX SAVED — RESTART bzkeeb"))
+        config = newConfig
+        statusItem?.menu = makeMenu()
+        overlays.show(.status("SETTINGS SAVED"))
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { [weak self] in
             if case .idle = self?.mode { self?.overlays.hide() }
         }
