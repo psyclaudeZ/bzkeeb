@@ -347,6 +347,7 @@ private struct ScreenGeometry {
 
 private final class OverlayView: NSView {
     let cgBounds: CGRect
+    var showsCrosshair = true
     var model: OverlayModel? {
         didSet { needsDisplay = true }
     }
@@ -412,6 +413,8 @@ private final class OverlayView: NSView {
 
         case .pointer(let point, let status):
             guard cgBounds.contains(point) else { return }
+            drawStatus(status)
+            guard showsCrosshair else { return }
             let local = localPoint(point)
             NSColor.systemPink.setStroke()
             let horizontal = NSBezierPath()
@@ -424,7 +427,6 @@ private final class OverlayView: NSView {
             vertical.line(to: CGPoint(x: local.x, y: local.y + 18))
             vertical.lineWidth = 2
             vertical.stroke()
-            drawStatus(status)
         }
     }
 
@@ -485,10 +487,12 @@ private final class OverlayController {
     }
 
     private var entries: [Entry] = []
+    var showsCrosshair = true
 
     func show(_ model: OverlayModel) {
         ensureWindows()
         for entry in entries {
+            entry.view.showsCrosshair = showsCrosshair
             entry.view.model = model
             entry.window.orderFrontRegardless()
         }
@@ -735,6 +739,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
+        overlays.showsCrosshair = !config.cursorEffectsEnabled
         installMenuBarItem()
 
         let timer = Timer(timeInterval: 2, repeats: true) { [weak self] _ in
@@ -1144,6 +1149,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
     private func saveConfig(_ newConfig: AppConfig) {
         newConfig.save()
         config = newConfig
+        overlays.showsCrosshair = !config.cursorEffectsEnabled
         statusItem?.menu = makeMenu()
         overlays.show(.status("SETTINGS SAVED"))
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { [weak self] in
