@@ -27,6 +27,8 @@ Change the prefix in `BK` → `Settings`; saved changes apply immediately.
 
 Settings also includes five animated cursor effects: Water waves, Expansion, Orbit, Breathing halo, and Spark rays. Compare the live previews, select one, and use **Test at cursor · 5 seconds** to try it before saving. Effects follow the pointer while a hint, grid, precision, or scroll mode is active and stop when the mode exits. You can disable effects, and animations respect macOS Reduce Motion.
 
+Enable **Animation disappears after 3 seconds** to hide the effect three seconds after entering a mode, while keeping the mode active. Movement does not restart the timer; exit and re-enter a mode to show the effect again. This option is off by default.
+
 The prototype is ad-hoc signed, so rebuilding can invalidate its previous Accessibility grant even when Settings still shows it enabled. If this happens, remove bzkeeb from System Settings → Privacy & Security → Accessibility, add `dist/bzkeeb.app` again, and enable it. bzkeeb retries the keyboard listener after permission is granted.
 
 Built with [Codex](https://github.com/openai/codex).

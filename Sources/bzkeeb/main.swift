@@ -47,6 +47,7 @@ private struct AppConfig {
     let activationModifiers: [ActivationModifier]
     var cursorEffect: CursorEffect = .waves
     var cursorEffectsEnabled = true
+    var cursorEffectsAutoHide = false
 
     static func load() -> AppConfig {
         let names = UserDefaults.standard.stringArray(forKey: storageKey) ?? []
@@ -56,7 +57,8 @@ private struct AppConfig {
         return AppConfig(
             activationModifiers: valid ? modifiers : fallback.activationModifiers,
             cursorEffect: CursorEffect(rawValue: UserDefaults.standard.string(forKey: "cursorEffect") ?? "") ?? .waves,
-            cursorEffectsEnabled: UserDefaults.standard.object(forKey: "cursorEffectsEnabled") as? Bool ?? true
+            cursorEffectsEnabled: UserDefaults.standard.object(forKey: "cursorEffectsEnabled") as? Bool ?? true,
+            cursorEffectsAutoHide: UserDefaults.standard.bool(forKey: "cursorEffectsAutoHide")
         )
     }
 
@@ -64,6 +66,7 @@ private struct AppConfig {
         UserDefaults.standard.set(activationModifiers.map(\.rawValue), forKey: Self.storageKey)
         UserDefaults.standard.set(cursorEffect.rawValue, forKey: "cursorEffect")
         UserDefaults.standard.set(cursorEffectsEnabled, forKey: "cursorEffectsEnabled")
+        UserDefaults.standard.set(cursorEffectsAutoHide, forKey: "cursorEffectsAutoHide")
     }
 
     var eventFlags: CGEventFlags {
@@ -83,6 +86,7 @@ private final class SettingsWindowController: NSWindowController, NSWindowDelega
     private let saveButton = NSButton(title: "Save", target: nil, action: nil)
     private let onSave: (AppConfig) -> Void
     private let effectEnabled = NSButton(checkboxWithTitle: "Show effect while a mode is active", target: nil, action: nil)
+    private let effectAutoHide = NSButton(checkboxWithTitle: "Animation disappears after 3 seconds", target: nil, action: nil)
     private var effectButtons: [NSButton] = []
     private var effectPreviews: [CursorEffectView] = []
     private var selectedEffect: CursorEffect = .waves
@@ -199,11 +203,8 @@ private final class SettingsWindowController: NSWindowController, NSWindowDelega
         }
         effectEnabled.frame = NSRect(x: 24, y: 155, width: 392, height: 24)
         contentView.addSubview(effectEnabled)
-        let effectNotice = NSTextField(wrappingLabelWithString: "Follows your pointer in hint, grid, precision and scroll modes. Escape ends the mode. Respects Reduce Motion.")
-        effectNotice.frame = NSRect(x: 24, y: 102, width: 392, height: 44)
-        effectNotice.font = .systemFont(ofSize: 12)
-        effectNotice.textColor = .secondaryLabelColor
-        contentView.addSubview(effectNotice)
+        effectAutoHide.frame = NSRect(x: 24, y: 129, width: 392, height: 24)
+        contentView.addSubview(effectAutoHide)
         let testButton = NSButton(title: "Test at cursor · 5 seconds", target: self, action: #selector(testEffect))
         testButton.bezelStyle = .rounded
         testButton.frame = NSRect(x: 24, y: 65, width: 225, height: 32)
@@ -226,6 +227,7 @@ private final class SettingsWindowController: NSWindowController, NSWindowDelega
     private func setConfig(_ config: AppConfig) {
         selectedEffect = config.cursorEffect
         effectEnabled.state = config.cursorEffectsEnabled ? .on : .off
+        effectAutoHide.state = config.cursorEffectsAutoHide ? .on : .off
         updateEffectSelection()
         for modifier in ActivationModifier.allCases {
             checkboxes[modifier]?.state = config.activationModifiers.contains(modifier) ? .on : .off
@@ -271,7 +273,8 @@ private final class SettingsWindowController: NSWindowController, NSWindowDelega
         let modifiers = selectedModifiers
         guard !modifiers.isEmpty else { return }
         onSave(AppConfig(activationModifiers: modifiers, cursorEffect: selectedEffect,
-                         cursorEffectsEnabled: effectEnabled.state == .on))
+                         cursorEffectsEnabled: effectEnabled.state == .on,
+                         cursorEffectsAutoHide: effectAutoHide.state == .on))
         close()
     }
 
@@ -727,7 +730,15 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
             switch mode {
             case .idle, .help: cursorEffects.hide()
             default:
-                if config.cursorEffectsEnabled { cursorEffects.show(config.cursorEffect) }
+                // Start once per activation; movement and mode transitions must
+                // not restart the timer or resurrect an expired animation.
+                switch oldValue {
+                case .idle, .help:
+                    if config.cursorEffectsEnabled {
+                        cursorEffects.show(config.cursorEffect, duration: config.cursorEffectsAutoHide ? 3 : nil)
+                    }
+                default: break
+                }
             }
         }
     }
