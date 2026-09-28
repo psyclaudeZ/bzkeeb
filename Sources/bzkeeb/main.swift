@@ -747,6 +747,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
     private var permissionRetryTimer: Timer?
     private var statusItem: NSStatusItem?
     private var settingsWindowController: SettingsWindowController?
+    private var settingsShortcutHeld = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -786,6 +787,14 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
             return Unmanaged.passUnretained(event)
         }
 
+        let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
+        // Consume the shortcut's repeats and release even after Settings exits
+        // the mode, so they cannot reach the newly focused window.
+        if keyCode == 43, settingsShortcutHeld {
+            if type == .keyUp { settingsShortcutHeld = false }
+            return nil
+        }
+
         if case .idle = mode {
             guard type == .keyDown, let command = globalCommand(for: event) else {
                 return Unmanaged.passUnretained(event)
@@ -795,6 +804,12 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         if type == .keyDown {
+            let modifiers: CGEventFlags = [.maskCommand, .maskShift, .maskControl, .maskAlternate, .maskSecondaryFn]
+            if keyCode == 43, event.flags.intersection(modifiers) == .maskCommand {
+                settingsShortcutHeld = true
+                showSettings()
+                return nil
+            }
             handleModeKey(event)
         }
         return nil

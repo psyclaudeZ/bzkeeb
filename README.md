@@ -1,6 +1,6 @@
 # bzkeeb (WIP)
 
-Keyboard mouse for macOS. Very early prototype.
+Keyboard mouse for macOS.
 
 ```sh
 ./scripts/build-app.sh
@@ -9,7 +9,7 @@ open dist/bzkeeb.app
 
 ## Keys
 
-Default prefix: `⌃⌥` (Control-Option).
+Default prefix: `⌃⌥`.
 
 - `⌃⌥F` hints → click
 - `⌃⌥O` hints → hover
@@ -21,14 +21,8 @@ Default prefix: `⌃⌥` (Control-Option).
 
 Precision mode: `hjkl` move, `return` click/drop, `r` right-click, `d` double-click, `v` drag, `esc` exit.
 
-Scroll mode: `hjkl` scroll, `Shift+hjkl` move the pointer, `u/d` page up/down, `esc` exit. Move the pointer over another pane to scroll it without leaving scroll mode.
+Scroll mode: `hjkl` scroll, `Shift+hjkl` move, `u/d` page up/down, `esc` exit.
 
-Change the prefix in `BK` → `Settings`; saved changes apply immediately.
-
-Settings also includes five animated cursor effects: Water waves, Expansion, Orbit, Breathing halo, and Spark rays. Compare the live previews, select one, and use **Test at cursor · 5 seconds** to try it before saving. Effects follow the pointer while a hint, grid, precision, or scroll mode is active and stop when the mode exits. You can disable effects, and animations respect macOS Reduce Motion.
-
-Enable **Animation disappears after 3 seconds** to hide the effect three seconds after entering a mode, while keeping the mode active. Movement does not restart the timer; exit and re-enter a mode to show the effect again. This option is off by default.
-
-The prototype is ad-hoc signed, so rebuilding can invalidate its previous Accessibility grant even when Settings still shows it enabled. If this happens, remove bzkeeb from System Settings → Privacy & Security → Accessibility, add `dist/bzkeeb.app` again, and enable it. bzkeeb retries the keyboard listener after permission is granted.
+Settings: `BK` → `Settings`, or `⌘,` during a mode. Configure the prefix, cursor effects, and 3s auto-hide.
 
 Built with [Codex](https://github.com/openai/codex).
