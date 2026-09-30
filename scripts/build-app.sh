@@ -18,6 +18,20 @@ export SWIFTPM_MODULECACHE_OVERRIDE="$build_root/swift-module-cache"
 
 swift build -c debug --disable-sandbox
 
+# A case-only path change does not rename an existing bundle on macOS.
+# Move through a temporary directory to preserve the lowercase spelling.
+old_app_root="$repo_root/dist/BzKeeb.app"
+if [ -d "$old_app_root" ]; then
+    if [ -e "$app_root" ] && ! [ "$old_app_root" -ef "$app_root" ]; then
+        echo "Both BzKeeb.app and bzkeeb.app exist; resolve the duplicate bundles before rebuilding." >&2
+        exit 1
+    fi
+    staging_root="$(mktemp -d "$repo_root/dist/.bzkeeb-rename.XXXXXX")"
+    mv "$old_app_root" "$staging_root/bzkeeb.app"
+    mv "$staging_root/bzkeeb.app" "$app_root"
+    rmdir "$staging_root"
+fi
+
 mkdir -p "$app_root/Contents/MacOS"
 cp "$repo_root/Support/Info.plist" "$app_root/Contents/Info.plist"
 # Rename the prior mixed-case executable through a temporary name on
