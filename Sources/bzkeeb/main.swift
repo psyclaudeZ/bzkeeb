@@ -823,19 +823,10 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func makeMenu() -> NSMenu {
-        let prefix = config.displayPrefix
         let menu = NSMenu()
         let title = NSMenuItem(title: "bzkeeb plumbing prototype", action: nil, keyEquivalent: "")
         title.isEnabled = false
         menu.addItem(title)
-        menu.addItem(.separator())
-        menu.addItem(NSMenuItem(title: "\(prefix)F  Hint click", action: nil, keyEquivalent: ""))
-        menu.addItem(NSMenuItem(title: "\(prefix)O  Hint hover", action: nil, keyEquivalent: ""))
-        menu.addItem(NSMenuItem(title: "\(prefix)R  Hint right-click", action: nil, keyEquivalent: ""))
-        menu.addItem(NSMenuItem(title: "\(prefix)G  Grid → precision", action: nil, keyEquivalent: ""))
-        menu.addItem(NSMenuItem(title: "\(prefix)P  Precision", action: nil, keyEquivalent: ""))
-        menu.addItem(NSMenuItem(title: "\(prefix)S  Scroll", action: nil, keyEquivalent: ""))
-        menu.addItem(NSMenuItem(title: "\(prefix)/  Help", action: nil, keyEquivalent: ""))
         menu.addItem(.separator())
 
         let settings = NSMenuItem(title: "Settings", action: #selector(showSettings), keyEquivalent: ",")
