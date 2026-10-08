@@ -25,4 +25,6 @@ Scroll mode: `hjkl` scroll, `Shift+hjkl` move, `u/d` page up/down, `esc` exit.
 
 Settings: `BK` → `Settings`, or `⌘,` during a mode. Configure the prefix, cursor effects, and 3s auto-hide.
 
+Blocked apps: add apps in Settings to disable bzkeeb while they’re focused.
+
 Built with [Codex](https://github.com/openai/codex).

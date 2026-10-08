@@ -48,6 +48,7 @@ private struct AppConfig {
     var cursorEffect: CursorEffect = .waves
     var cursorEffectsEnabled = true
     var cursorEffectsAutoHide = false
+    var blockedAppIdentifiers: [String] = []
 
     static func load() -> AppConfig {
         let names = UserDefaults.standard.stringArray(forKey: storageKey) ?? []
@@ -58,7 +59,8 @@ private struct AppConfig {
             activationModifiers: valid ? modifiers : fallback.activationModifiers,
             cursorEffect: CursorEffect(rawValue: UserDefaults.standard.string(forKey: "cursorEffect") ?? "") ?? .waves,
             cursorEffectsEnabled: UserDefaults.standard.object(forKey: "cursorEffectsEnabled") as? Bool ?? true,
-            cursorEffectsAutoHide: UserDefaults.standard.bool(forKey: "cursorEffectsAutoHide")
+            cursorEffectsAutoHide: UserDefaults.standard.bool(forKey: "cursorEffectsAutoHide"),
+            blockedAppIdentifiers: UserDefaults.standard.stringArray(forKey: "blockedAppIdentifiers") ?? []
         )
     }
 
@@ -67,6 +69,7 @@ private struct AppConfig {
         UserDefaults.standard.set(cursorEffect.rawValue, forKey: "cursorEffect")
         UserDefaults.standard.set(cursorEffectsEnabled, forKey: "cursorEffectsEnabled")
         UserDefaults.standard.set(cursorEffectsAutoHide, forKey: "cursorEffectsAutoHide")
+        UserDefaults.standard.set(blockedAppIdentifiers, forKey: "blockedAppIdentifiers")
     }
 
     var eventFlags: CGEventFlags {
@@ -92,11 +95,12 @@ private final class SettingsWindowController: NSWindowController, NSWindowDelega
     private var selectedEffect: CursorEffect = .waves
     private var previewTimer: Timer?
     private let cursorPreview = CursorEffectController()
+    private let blocklist = AppBlocklistView(frame: NSRect(x: 440, y: 104, width: 296, height: 490))
 
     init(config: AppConfig, onSave: @escaping (AppConfig) -> Void) {
         self.onSave = onSave
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 440, height: 620),
+            contentRect: NSRect(x: 0, y: 0, width: 760, height: 620),
             styleMask: [.titled, .closable],
             backing: .buffered,
             defer: false
@@ -139,6 +143,9 @@ private final class SettingsWindowController: NSWindowController, NSWindowDelega
 
     private func buildContent() {
         guard let contentView = window?.contentView else { return }
+        // Added after the existing controls so their layout offsets do not
+        // affect this independent section.
+        defer { contentView.addSubview(blocklist) }
 
         let title = NSTextField(labelWithString: "Activation prefix")
         title.frame = NSRect(x: 24, y: 250, width: 392, height: 24)
@@ -211,20 +218,21 @@ private final class SettingsWindowController: NSWindowController, NSWindowDelega
         contentView.addSubview(testButton)
 
         let cancelButton = NSButton(title: "Cancel", target: self, action: #selector(cancel))
-        cancelButton.frame = NSRect(x: 256, y: 20, width: 78, height: 32)
+        cancelButton.frame = NSRect(x: 572, y: 20, width: 78, height: 32)
         cancelButton.bezelStyle = .rounded
         cancelButton.keyEquivalent = "\u{1b}"
         contentView.addSubview(cancelButton)
 
         saveButton.target = self
         saveButton.action = #selector(save)
-        saveButton.frame = NSRect(x: 342, y: 20, width: 78, height: 32)
+        saveButton.frame = NSRect(x: 658, y: 20, width: 78, height: 32)
         saveButton.bezelStyle = .rounded
         saveButton.keyEquivalent = "\r"
         contentView.addSubview(saveButton)
     }
 
     private func setConfig(_ config: AppConfig) {
+        blocklist.bundleIdentifiers = config.blockedAppIdentifiers
         selectedEffect = config.cursorEffect
         effectEnabled.state = config.cursorEffectsEnabled ? .on : .off
         effectAutoHide.state = config.cursorEffectsAutoHide ? .on : .off
@@ -274,7 +282,8 @@ private final class SettingsWindowController: NSWindowController, NSWindowDelega
         guard !modifiers.isEmpty else { return }
         onSave(AppConfig(activationModifiers: modifiers, cursorEffect: selectedEffect,
                          cursorEffectsEnabled: effectEnabled.state == .on,
-                         cursorEffectsAutoHide: effectAutoHide.state == .on))
+                         cursorEffectsAutoHide: effectAutoHide.state == .on,
+                         blockedAppIdentifiers: blocklist.bundleIdentifiers))
         close()
     }
 
@@ -753,6 +762,10 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.setActivationPolicy(.accessory)
         overlays.showsCrosshair = !config.cursorEffectsEnabled
         installMenuBarItem()
+        NSWorkspace.shared.notificationCenter.addObserver(
+            self, selector: #selector(frontmostAppChanged),
+            name: NSWorkspace.didActivateApplicationNotification, object: nil
+        )
 
         let timer = Timer(timeInterval: 2, repeats: true) { [weak self] _ in
             guard let self, self.eventTap == nil,
@@ -770,6 +783,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        NSWorkspace.shared.notificationCenter.removeObserver(self)
         permissionRetryTimer?.invalidate()
         cancelCurrentMode()
         if let eventTapSource {
@@ -784,6 +798,12 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         guard type == .keyDown || type == .keyUp else {
+            return Unmanaged.passUnretained(event)
+        }
+
+        // Check before swallowing any keys, including a pending shortcut release.
+        if frontmostAppIsBlocked {
+            exitModeForBlockedApp()
             return Unmanaged.passUnretained(event)
         }
 
@@ -820,6 +840,21 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
         item.button?.title = "BK"
         item.menu = makeMenu()
         statusItem = item
+    }
+
+    private var frontmostAppIsBlocked: Bool {
+        guard let identifier = NSWorkspace.shared.frontmostApplication?.bundleIdentifier else { return false }
+        return config.blockedAppIdentifiers.contains(identifier)
+    }
+
+    @objc private func frontmostAppChanged(_ notification: Notification) {
+        if frontmostAppIsBlocked { exitModeForBlockedApp() }
+    }
+
+    private func exitModeForBlockedApp() {
+        settingsShortcutHeld = false
+        if case .idle = mode { return }
+        cancelCurrentMode()
     }
 
     private func makeMenu() -> NSMenu {
@@ -1166,6 +1201,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
     private func saveConfig(_ newConfig: AppConfig) {
         newConfig.save()
         config = newConfig
+        if frontmostAppIsBlocked { exitModeForBlockedApp() }
         overlays.showsCrosshair = !config.cursorEffectsEnabled
         statusItem?.menu = makeMenu()
         overlays.show(.status("SETTINGS SAVED"))
