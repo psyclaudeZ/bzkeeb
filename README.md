@@ -23,6 +23,8 @@ Precision mode: `hjkl` move, `return` click/drop, `r` right-click, `d` double-cl
 
 Scroll mode: `hjkl` scroll, `Shift+hjkl` move, `u/d` page up/down, `esc` exit.
 
+Click any mouse button to exit a mode; the click passes through.
+
 Settings: `BK` → `Settings`, or `⌘,` during a mode. Configure the prefix, cursor effects, and 3s auto-hide.
 
 Blocked apps: add apps in Settings to disable bzkeeb while they’re focused.

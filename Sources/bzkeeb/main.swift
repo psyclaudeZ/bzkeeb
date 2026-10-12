@@ -553,8 +553,12 @@ private final class OverlayController {
 }
 
 private enum MouseController {
+    static let eventMarker: Int64 = 0x627a6b656562
+
     private static func source() -> CGEventSource? {
-        CGEventSource(stateID: .hidSystemState)
+        let source = CGEventSource(stateID: .hidSystemState)
+        source?.userData = eventMarker
+        return source
     }
 
     static func location() -> CGPoint {
@@ -797,6 +801,15 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
             return Unmanaged.passUnretained(event)
         }
 
+        if type == .leftMouseDown || type == .rightMouseDown || type == .otherMouseDown {
+            // Generated clicks and drag starts must not cancel their own mode.
+            if event.getIntegerValueField(.eventSourceUserData) != MouseController.eventMarker {
+                if case .idle = mode { return Unmanaged.passUnretained(event) }
+                cancelCurrentMode()
+            }
+            return Unmanaged.passUnretained(event)
+        }
+
         guard type == .keyDown || type == .keyUp else {
             return Unmanaged.passUnretained(event)
         }
@@ -881,6 +894,9 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
     private func installEventTap(reportFailure: Bool = true) -> Bool {
         let mask = (CGEventMask(1) << CGEventType.keyDown.rawValue)
             | (CGEventMask(1) << CGEventType.keyUp.rawValue)
+            | (CGEventMask(1) << CGEventType.leftMouseDown.rawValue)
+            | (CGEventMask(1) << CGEventType.rightMouseDown.rawValue)
+            | (CGEventMask(1) << CGEventType.otherMouseDown.rawValue)
         let pointer = Unmanaged.passUnretained(self).toOpaque()
         guard let tap = CGEvent.tapCreate(
             tap: .cgSessionEventTap,
