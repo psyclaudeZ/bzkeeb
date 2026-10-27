@@ -1010,7 +1010,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func showScrollPointer(at point: CGPoint) {
-        overlays.show(.pointer(point, "SCROLL  hjkl scroll · ⇧hjkl move · u/d page · esc"))
+        overlays.show(.pointer(point, "SCROLL  hjkl scroll · Shift+hjkl or arrows move · u/d page · esc"))
     }
 
     private func showHelp() {
@@ -1021,7 +1021,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
         \(prefix)F  hint click     \(prefix)O  hint hover     \(prefix)R  hint right-click
         \(prefix)G  grid           \(prefix)P  precision      \(prefix)S  scroll
         precision: hjkl move · ↩ click/drop · r right-click · d double-click · v drag
-        scroll: hjkl scroll · ⇧hjkl move pointer · u/d page
+        scroll: hjkl scroll · Shift+hjkl or arrows move pointer · u/d page
         esc closes any mode
         """))
     }
@@ -1126,8 +1126,10 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
             overlays.show(.pointer(state.point, status))
 
         case .scroll:
-            guard let key = keyString(event) else { return }
-            if event.flags.contains(.maskShift), ["h", "j", "k", "l"].contains(key) {
+            let arrowKeys: [Int64: String] = [123: "h", 124: "l", 125: "j", 126: "k"]
+            let arrowKey = arrowKeys[keyCode]
+            guard let key = arrowKey ?? keyString(event) else { return }
+            if arrowKey != nil || (event.flags.contains(.maskShift) && ["h", "j", "k", "l"].contains(key)) {
                 var point = MouseController.location()
                 let step: CGFloat = 40
                 switch key {

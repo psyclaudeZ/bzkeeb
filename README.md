@@ -21,7 +21,7 @@ Default prefix: `⌃⌥`.
 
 Precision mode: `hjkl` move, `return` click/drop, `r` right-click, `d` double-click, `v` drag, `esc` exit.
 
-Scroll mode: `hjkl` scroll, `Shift+hjkl` move, `u/d` page up/down, `esc` exit.
+Scroll mode: `hjkl` scroll, `Shift+hjkl` or arrow keys move the pointer, `u/d` page up/down, `esc` exit.
 
 Click any mouse button to exit a mode; the click passes through.
 
