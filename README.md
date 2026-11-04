@@ -25,6 +25,8 @@ Scroll mode: `hjkl` scroll, `Shift+hjkl` or arrow keys move the pointer, `u/d` p
 
 Click any mouse button to exit a mode; the click passes through.
 
+Unrecognized keys briefly highlight the screen edge and show the active mode.
+
 Settings: `BK` → `Settings`, or `⌘,` during a mode. Configure the prefix, cursor effects, and 3s auto-hide.
 
 Blocked apps: add apps in Settings to disable bzkeeb while they’re focused.

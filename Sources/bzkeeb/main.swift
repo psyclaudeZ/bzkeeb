@@ -737,11 +737,14 @@ private enum AccessibilityScanner {
 private final class AppDelegate: NSObject, NSApplicationDelegate {
     private let overlays = OverlayController()
     private let cursorEffects = CursorEffectController()
+    private let modeReminder = ModeReminder()
     private var config = AppConfig.load()
     private var mode: Mode = .idle {
         didSet {
             switch mode {
-            case .idle, .help: cursorEffects.hide()
+            case .idle, .help:
+                cursorEffects.hide()
+                modeReminder.hide()
             default:
                 // Start once per activation; movement and mode transitions must
                 // not restart the timer or resurrect an expired animation.
@@ -1037,7 +1040,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
         case .idle:
             break
         case .scanning:
-            break
+            showRejectedKeyReminder(event)
         case .hints(var state):
             if keyCode == 51 { // Delete
                 if !state.typed.isEmpty { state.typed.removeLast() }
@@ -1046,13 +1049,13 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
                 return
             }
             guard let key = keyString(event), "asdfghjkl".contains(key) else {
-                NSSound.beep()
+                showRejectedKeyReminder(event)
                 return
             }
             state.typed += key
             let matches = state.targets.filter { $0.code.hasPrefix(state.typed) }
             guard !matches.isEmpty else {
-                NSSound.beep()
+                showRejectedKeyReminder(event)
                 state.typed = ""
                 mode = .hints(state)
                 overlays.show(.hints(state.targets, state.typed, state.action.status))
@@ -1067,7 +1070,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
 
         case .grid(var state):
             guard let key = keyString(event), let selection = gridSelection(for: key) else {
-                NSSound.beep()
+                showRejectedKeyReminder(event)
                 return
             }
             state.rect = gridCell(in: state.rect, column: selection.column, row: selection.row)
@@ -1092,7 +1095,10 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
                 mode = .idle
                 return
             }
-            guard let key = keyString(event) else { return }
+            guard let key = keyString(event) else {
+                showRejectedKeyReminder(event)
+                return
+            }
             let step: CGFloat = event.flags.contains(.maskShift) ? 40 : 10
             var next = state.point
             switch key {
@@ -1114,7 +1120,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
                 mode = .idle
                 return
             default:
-                NSSound.beep()
+                showRejectedKeyReminder(event)
                 return
             }
             if next != state.point {
@@ -1128,7 +1134,10 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
         case .scroll:
             let arrowKeys: [Int64: String] = [123: "h", 124: "l", 125: "j", 126: "k"]
             let arrowKey = arrowKeys[keyCode]
-            guard let key = arrowKey ?? keyString(event) else { return }
+            guard let key = arrowKey ?? keyString(event) else {
+                showRejectedKeyReminder(event)
+                return
+            }
             if arrowKey != nil || (event.flags.contains(.maskShift) && ["h", "j", "k", "l"].contains(key)) {
                 var point = MouseController.location()
                 let step: CGFloat = 40
@@ -1151,12 +1160,27 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
             case "l": MouseController.scroll(vertical: 0, horizontal: -amount)
             case "d": MouseController.scroll(vertical: -600, horizontal: 0)
             case "u": MouseController.scroll(vertical: 600, horizontal: 0)
-            default: NSSound.beep()
+            default: showRejectedKeyReminder(event)
             }
 
         case .help:
-            NSSound.beep()
+            showRejectedKeyReminder(event)
         }
+    }
+
+    private func showRejectedKeyReminder(_ event: CGEvent) {
+        guard event.getIntegerValueField(.keyboardEventAutorepeat) == 0 else { return }
+        let name: String
+        switch mode {
+        case .idle: return
+        case .scanning: name = "Scanning"
+        case .hints: name = "Hints"
+        case .grid: name = "Grid"
+        case .precision(let state): name = state.dragging ? "Drag" : "Precision"
+        case .scroll: name = "Scroll"
+        case .help: name = "Help"
+        }
+        modeReminder.show(mode: name)
     }
 
     private func performHintAction(_ action: HintAction, target: HintTarget) {
