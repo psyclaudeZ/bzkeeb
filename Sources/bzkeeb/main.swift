@@ -1169,7 +1169,6 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func showRejectedKeyReminder(_ event: CGEvent) {
-        guard event.getIntegerValueField(.keyboardEventAutorepeat) == 0 else { return }
         let name: String
         switch mode {
         case .idle: return

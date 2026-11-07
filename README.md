@@ -25,7 +25,7 @@ Scroll mode: `hjkl` scroll, `Shift+hjkl` or arrow keys move the pointer, `u/d` p
 
 Click any mouse button to exit a mode; the click passes through.
 
-Unrecognized keys briefly highlight the screen edge and show the active mode.
+Unrecognized keys pulse the screen border and show a centered mode reminder. Each keypress refreshes it.
 
 Settings: `BK` → `Settings`, or `⌘,` during a mode. Configure the prefix, cursor effects, and 3s auto-hide.
 
