@@ -14,14 +14,19 @@ Default prefix: `⌃⌥`.
 - `⌃⌥F` hints → click
 - `⌃⌥O` hints → hover
 - `⌃⌥R` hints → right-click
-- `⌃⌥G` grid → precision mode
-- `⌃⌥P` precision mode
+- `⌃⌥G` grid → scroll mode
+- `⌃⌥P` scroll mode (alias)
 - `⌃⌥S` scroll mode
 - `⌃⌥/` help
 
-Precision mode: `hjkl` move, `return` click/drop, `r` right-click, `d` double-click, `v` drag, `esc` exit.
+Scroll mode combines scrolling and mouse control:
 
-Scroll mode: `hjkl` scroll, `Shift+hjkl` or arrow keys move the pointer, `u/d` page up/down, `esc` exit.
+- `hjkl` scroll; `u/d` page up/down.
+- `Option+hjkl` or arrow keys move the pointer (40 pixels).
+- Add `Shift` to either movement binding for slower movement (10 pixels).
+- `return` / `space` click or drop; `r` right-click; `x` double-click; `v` start dragging.
+- Clicks and drops exit the mode. `esc` exits and releases an active drag.
+- While dragging, movement and scrolling keep working; right-click, double-click, and another drag start are ignored.
 
 Click any mouse button to exit a mode; the click passes through.
 

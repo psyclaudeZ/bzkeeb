@@ -330,18 +330,12 @@ private struct GridState {
     var depth: Int
 }
 
-private struct PrecisionState {
-    var point: CGPoint
-    var dragging: Bool
-}
-
 private enum Mode {
     case idle
     case scanning(HintAction)
     case hints(HintState)
     case grid(GridState)
-    case precision(PrecisionState)
-    case scroll
+    case scroll(dragging: Bool)
     case help
 }
 
@@ -864,8 +858,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
         case 31: return "hint-hover"    // O
         case 15: return "hint-right"    // R
         case 5: return "grid"           // G
-        case 35: return "precision"     // P
-        case 1: return "scroll"         // S
+        case 35, 1: return "scroll"     // P (compatibility alias), S
         case 44: return "help"           // /
         default: return nil
         }
@@ -877,8 +870,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
         case "hint-hover": beginHints(action: .hover)
         case "hint-right": beginHints(action: .rightClick)
         case "grid": beginGrid()
-        case "precision": beginPrecision(at: MouseController.location())
-        case "scroll": beginScroll()
+        case "scroll": beginScroll(at: MouseController.location())
         case "help": showHelp()
         default: break
         }
@@ -936,19 +928,14 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
         overlays.show(.grid(state.rect, state.depth))
     }
 
-    private func beginPrecision(at point: CGPoint) {
-        let state = PrecisionState(point: point, dragging: false)
-        mode = .precision(state)
-        overlays.show(.pointer(point, "PRECISION  hjkl · v drag · ↩ click · esc"))
+    private func beginScroll(at point: CGPoint) {
+        mode = .scroll(dragging: false)
+        showScrollPointer(at: point, dragging: false)
     }
 
-    private func beginScroll() {
-        mode = .scroll
-        showScrollPointer(at: MouseController.location())
-    }
-
-    private func showScrollPointer(at point: CGPoint) {
-        overlays.show(.pointer(point, "SCROLL  hjkl scroll · Shift+hjkl or arrows move · u/d page · esc"))
+    private func showScrollPointer(at point: CGPoint, dragging: Bool) {
+        let title = dragging ? "DRAGGING" : "SCROLL"
+        overlays.show(.pointer(point, "\(title)  hjkl scroll · ⌥hjkl/arrows move · ⇧ slower · ↩ \(dragging ? "drop" : "click") · esc"))
     }
 
     private func showHelp() {
@@ -957,9 +944,9 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
         overlays.show(.status("""
         bzkeeb
         \(prefix)F  hint click     \(prefix)O  hint hover     \(prefix)R  hint right-click
-        \(prefix)G  grid           \(prefix)P  precision      \(prefix)S  scroll
-        precision: hjkl move · ↩ click/drop · r right-click · d double-click · v drag
-        scroll: hjkl scroll · Shift+hjkl or arrows move pointer · u/d page
+        \(prefix)G  grid           \(prefix)S / \(prefix)P  scroll
+        scroll: hjkl scroll · u/d page · ⌥hjkl or arrows move · add ⇧ for slower movement
+        ↩/space click/drop · r right-click · x double-click · v drag
         esc closes any mode
         """))
     }
@@ -1013,90 +1000,59 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
             let point = CGPoint(x: state.rect.midX, y: state.rect.midY)
             MouseController.move(to: point)
             if state.depth >= 3 {
-                beginPrecision(at: point)
+                beginScroll(at: point)
             } else {
                 mode = .grid(state)
                 overlays.show(.grid(state.rect, state.depth))
             }
 
-        case .precision(var state):
-            if keyCode == 36 || keyCode == 76 || keyCode == 49 { // Return, keypad Enter, Space
+        case .scroll(let dragging):
+            guard let command = MouseCommand.decode(keyCode: keyCode, flags: event.flags) else {
+                showRejectedKeyReminder(event)
+                return
+            }
+            // Follow physical pointer movement too, including during a drag.
+            var point = MouseController.location()
+            switch command {
+            case .move(let dx, let dy):
+                point.x += dx
+                point.y += dy
+                MouseController.move(to: point, dragging: dragging)
+            case .scroll(let vertical, let horizontal):
+                MouseController.scroll(vertical: vertical, horizontal: horizontal)
+            case .click:
                 overlays.hide()
-                if state.dragging {
-                    MouseController.endDrag(at: state.point)
+                if dragging {
+                    MouseController.endDrag(at: point)
                 } else {
-                    MouseController.click(at: state.point)
+                    MouseController.click(at: point)
                 }
                 mode = .idle
                 return
-            }
-            guard let key = keyString(event) else {
-                showRejectedKeyReminder(event)
-                return
-            }
-            let step: CGFloat = event.flags.contains(.maskShift) ? 40 : 10
-            var next = state.point
-            switch key {
-            case "h": next.x -= step
-            case "j": next.y += step
-            case "k": next.y -= step
-            case "l": next.x += step
-            case "v" where !state.dragging:
-                MouseController.beginDrag(at: state.point)
-                state.dragging = true
-            case "r" where !state.dragging:
-                overlays.hide()
-                MouseController.click(at: state.point, button: .right)
-                mode = .idle
-                return
-            case "d" where !state.dragging:
-                overlays.hide()
-                MouseController.click(at: state.point, count: 2)
-                mode = .idle
-                return
-            default:
-                showRejectedKeyReminder(event)
-                return
-            }
-            if next != state.point {
-                state.point = next
-                MouseController.move(to: next, dragging: state.dragging)
-            }
-            mode = .precision(state)
-            let status = state.dragging ? "DRAGGING  hjkl · ↩ drop · esc" : "PRECISION  hjkl · v drag · ↩ click · esc"
-            overlays.show(.pointer(state.point, status))
-
-        case .scroll:
-            let arrowKeys: [Int64: String] = [123: "h", 124: "l", 125: "j", 126: "k"]
-            let arrowKey = arrowKeys[keyCode]
-            guard let key = arrowKey ?? keyString(event) else {
-                showRejectedKeyReminder(event)
-                return
-            }
-            if arrowKey != nil || (event.flags.contains(.maskShift) && ["h", "j", "k", "l"].contains(key)) {
-                var point = MouseController.location()
-                let step: CGFloat = 40
-                switch key {
-                case "h": point.x -= step
-                case "j": point.y += step
-                case "k": point.y -= step
-                case "l": point.x += step
-                default: break
+            case .rightClick, .doubleClick:
+                guard !dragging else {
+                    showRejectedKeyReminder(event)
+                    return
                 }
-                MouseController.move(to: point)
-                showScrollPointer(at: point)
+                overlays.hide()
+                if command == .rightClick {
+                    MouseController.click(at: point, button: .right)
+                } else {
+                    MouseController.click(at: point, count: 2)
+                }
+                mode = .idle
+                return
+            case .beginDrag:
+                guard !dragging else {
+                    showRejectedKeyReminder(event)
+                    return
+                }
+                MouseController.beginDrag(at: point)
+                mode = .scroll(dragging: true)
+                showScrollPointer(at: point, dragging: true)
                 return
             }
-            let amount: Int32 = 70
-            switch key {
-            case "j": MouseController.scroll(vertical: -amount, horizontal: 0)
-            case "k": MouseController.scroll(vertical: amount, horizontal: 0)
-            case "h": MouseController.scroll(vertical: 0, horizontal: amount)
-            case "l": MouseController.scroll(vertical: 0, horizontal: -amount)
-            case "d": MouseController.scroll(vertical: -600, horizontal: 0)
-            case "u": MouseController.scroll(vertical: 600, horizontal: 0)
-            default: showRejectedKeyReminder(event)
-            }
+            showScrollPointer(at: point, dragging: dragging)
 
         case .help:
             showRejectedKeyReminder(event)
@@ -1110,8 +1066,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
         case .scanning: name = "Scanning"
         case .hints: name = "Hints"
         case .grid: name = "Grid"
-        case .precision(let state): name = state.dragging ? "Drag" : "Precision"
-        case .scroll: name = "Scroll"
+        case .scroll(let dragging): name = dragging ? "Drag" : "Scroll"
         case .help: name = "Help"
         }
         modeReminder.show(mode: name)
@@ -1132,8 +1087,8 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func cancelCurrentMode() {
-        if case .precision(let state) = mode, state.dragging {
-            MouseController.endDrag(at: state.point)
+        if case .scroll(dragging: true) = mode {
+            MouseController.endDrag(at: MouseController.location())
         }
         mode = .idle
         overlays.hide()
