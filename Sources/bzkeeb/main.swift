@@ -935,7 +935,16 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func showScrollPointer(at point: CGPoint, dragging: Bool) {
         let title = dragging ? "DRAGGING" : "SCROLL"
-        overlays.show(.pointer(point, "\(title)  hjkl scroll · ⌥hjkl/arrows move · ⇧ slower · ↩ \(dragging ? "drop" : "click") · esc"))
+        let actions = dragging
+            ? "↩ / space drop & exit · esc release & exit"
+            : "↩ / space click · r right-click · x double-click\nv start drag · all clicks exit"
+        overlays.show(.pointer(point, """
+        \(title)  hjkl scroll · u/d page up/down
+        ⌥ + hjkl or arrow keys move fast (40 px)
+        ⇧⌥ + hjkl or ⇧ + arrow keys move slowly (10 px)
+        \(actions)
+        esc / mouse click exit · ⌘, settings
+        """))
     }
 
     private func showHelp() {
