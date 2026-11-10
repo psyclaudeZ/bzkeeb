@@ -12,6 +12,7 @@ let package = Package(
     ],
     targets: [
         .executableTarget(name: "bzkeeb"),
+        .testTarget(name: "bzkeebTests", dependencies: ["bzkeeb"]),
     ],
     swiftLanguageModes: [.v5]
 )
