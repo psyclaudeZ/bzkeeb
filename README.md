@@ -15,7 +15,6 @@ Default prefix: `⌃⌥`.
 - `⌃⌥O` hints → hover
 - `⌃⌥R` hints → right-click
 - `⌃⌥G` grid → scroll mode
-- `⌃⌥P` scroll mode (alias)
 - `⌃⌥S` scroll mode
 - `⌃⌥/` help
 

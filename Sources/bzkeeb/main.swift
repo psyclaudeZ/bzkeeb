@@ -858,7 +858,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
         case 31: return "hint-hover"    // O
         case 15: return "hint-right"    // R
         case 5: return "grid"           // G
-        case 35, 1: return "scroll"     // P (compatibility alias), S
+        case 1: return "scroll"         // S
         case 44: return "help"           // /
         default: return nil
         }
@@ -944,7 +944,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
         overlays.show(.status("""
         bzkeeb
         \(prefix)F  hint click     \(prefix)O  hint hover     \(prefix)R  hint right-click
-        \(prefix)G  grid           \(prefix)S / \(prefix)P  scroll
+        \(prefix)G  grid           \(prefix)S  scroll
         scroll: hjkl scroll · u/d page · ⌥hjkl or arrows move · add ⇧ for slower movement
         ↩/space click/drop · r right-click · x double-click · v drag
         esc closes any mode
