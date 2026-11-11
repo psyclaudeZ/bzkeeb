@@ -341,7 +341,7 @@ private enum Mode {
 
 private enum OverlayModel {
     case status(String)
-    case help(prefix: String, returnToScroll: Bool)
+    case help(prefix: String)
     case hints([HintTarget], String, String)
     case grid(CGRect, Int)
     case pointer(CGPoint, String)
@@ -375,8 +375,8 @@ private final class OverlayView: NSView {
         guard let model else { return }
 
         switch model {
-        case .help(let prefix, let returnToScroll):
-            HelpOverlay.draw(in: bounds, prefix: prefix, returnToScroll: returnToScroll)
+        case .help(let prefix):
+            HelpOverlay.draw(in: bounds, prefix: prefix)
 
         case .status(let text):
             drawStatus(text)
@@ -948,7 +948,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
         // Never leave a mouse button held while the help panel is open.
         cancelCurrentMode()
         mode = .help(returnToScroll: returnToScroll)
-        overlays.show(.help(prefix: config.displayPrefix, returnToScroll: returnToScroll))
+        overlays.show(.help(prefix: config.displayPrefix))
     }
 
     private func closeHelp() {

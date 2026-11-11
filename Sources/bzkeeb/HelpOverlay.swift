@@ -1,8 +1,8 @@
 import AppKit
 
 enum HelpOverlay {
-    static func draw(in bounds: CGRect, prefix: String, returnToScroll: Bool) {
-        let size = CGSize(width: 680, height: 553)
+    static func draw(in bounds: CGRect, prefix: String) {
+        let size = CGSize(width: 680, height: 510)
         let scale = min(1, min((bounds.width - 40) / size.width, (bounds.height - 40) / size.height))
         guard scale > 0, let context = NSGraphicsContext.current?.cgContext else { return }
         context.saveGState()
@@ -49,7 +49,5 @@ enum HelpOverlay {
             ("v", "Start dragging; move and scroll as usual"),
             ("Esc / mouse click", "Exit mode; release any active drag"),
         ])
-        let close = returnToScroll ? "return to scroll mode" : "close help"
-        text("Esc or \(prefix)/  ·  \(close)", y: y, font: .systemFont(ofSize: 14, weight: .medium))
     }
 }
