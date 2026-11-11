@@ -2,7 +2,7 @@ import AppKit
 
 enum HelpOverlay {
     static func draw(in bounds: CGRect, prefix: String, returnToScroll: Bool) {
-        let size = CGSize(width: 680, height: 652)
+        let size = CGSize(width: 680, height: 611)
         let scale = min(1, min((bounds.width - 40) / size.width, (bounds.height - 40) / size.height))
         guard scale > 0, let context = NSGraphicsContext.current?.cgContext else { return }
         context.saveGState()
@@ -41,13 +41,11 @@ enum HelpOverlay {
             ("\(prefix)G", "Grid → scroll mode"),
             ("\(prefix)S", "Scroll mode"),
         ])
-        section("SCROLL MODE — SCROLL & MOVE", rows: [
+        section("SCROLL MODE", rows: [
             ("h j k l", "Scroll left / down / up / right"),
             ("u / d", "Page up / down"),
             ("⌥ + hjkl  or  arrows", "Move pointer fast · 40 px"),
             ("Add ⇧ to either", "Move pointer slowly · 10 px"),
-        ])
-        section("SCROLL MODE — CLICK & DRAG", rows: [
             ("Return / Space", "Click or drop, then exit"),
             ("r / x", "Right-click / double-click, then exit"),
             ("v", "Start dragging; move and scroll as usual"),
