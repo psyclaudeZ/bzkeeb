@@ -336,11 +336,12 @@ private enum Mode {
     case hints(HintState)
     case grid(GridState)
     case scroll(dragging: Bool)
-    case help
+    case help(returnToScroll: Bool)
 }
 
 private enum OverlayModel {
     case status(String)
+    case help(prefix: String, returnToScroll: Bool)
     case hints([HintTarget], String, String)
     case grid(CGRect, Int)
     case pointer(CGPoint, String)
@@ -374,6 +375,9 @@ private final class OverlayView: NSView {
         guard let model else { return }
 
         switch model {
+        case .help(let prefix, let returnToScroll):
+            HelpOverlay.draw(in: bounds, prefix: prefix, returnToScroll: returnToScroll)
+
         case .status(let text):
             drawStatus(text)
 
@@ -935,35 +939,34 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func showScrollPointer(at point: CGPoint, dragging: Bool) {
         let title = dragging ? "DRAGGING" : "SCROLL"
-        let actions = dragging
-            ? "↩ / space drop & exit · esc release & exit"
-            : "↩ / space click · r right-click · x double-click\nv start drag · all clicks exit"
-        overlays.show(.pointer(point, """
-        \(title)  hjkl scroll · u/d page up/down
-        ⌥ + hjkl or arrow keys move fast (40 px)
-        ⇧⌥ + hjkl or ⇧ + arrow keys move slowly (10 px)
-        \(actions)
-        esc / mouse click exit · ⌘, settings
-        """))
+        overlays.show(.pointer(point, "\(title)  ·  \(config.displayPrefix)/ help  ·  esc exit"))
     }
 
     private func showHelp() {
-        let prefix = config.displayPrefix
-        mode = .help
-        overlays.show(.status("""
-        bzkeeb
-        \(prefix)F  hint click     \(prefix)O  hint hover     \(prefix)R  hint right-click
-        \(prefix)G  grid           \(prefix)S  scroll
-        scroll: hjkl scroll · u/d page · ⌥hjkl or arrows move · add ⇧ for slower movement
-        ↩/space click/drop · r right-click · x double-click · v drag
-        esc closes any mode
-        """))
+        let returnToScroll: Bool
+        if case .scroll = mode { returnToScroll = true } else { returnToScroll = false }
+        // Never leave a mouse button held while the help panel is open.
+        cancelCurrentMode()
+        mode = .help(returnToScroll: returnToScroll)
+        overlays.show(.help(prefix: config.displayPrefix, returnToScroll: returnToScroll))
+    }
+
+    private func closeHelp() {
+        if case .help(returnToScroll: true) = mode {
+            beginScroll(at: MouseController.location())
+        } else {
+            cancelCurrentMode()
+        }
     }
 
     private func handleModeKey(_ event: CGEvent) {
         let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
+        if globalCommand(for: event) == "help" {
+            if case .help = mode { closeHelp() } else { showHelp() }
+            return
+        }
         if keyCode == 53 { // Escape
-            cancelCurrentMode()
+            if case .help = mode { closeHelp() } else { cancelCurrentMode() }
             return
         }
 

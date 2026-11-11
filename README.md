@@ -18,6 +18,9 @@ Default prefix: `⌃⌥`.
 - `⌃⌥S` scroll mode
 - `⌃⌥/` help
 
+Help groups all controls by task. Open it during scroll mode with the same shortcut;
+`esc` or the shortcut returns to scrolling. Opening help releases an active drag.
+
 Scroll mode combines scrolling and mouse control:
 
 - `hjkl` scroll; `u/d` page up/down.
