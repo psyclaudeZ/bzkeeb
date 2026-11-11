@@ -41,13 +41,13 @@ enum HelpOverlay {
             ("\(prefix)G", "Grid → scroll mode"),
             ("\(prefix)S", "Scroll mode"),
         ])
-        section("SCROLL & MOVE", rows: [
+        section("SCROLL MODE — SCROLL & MOVE", rows: [
             ("h j k l", "Scroll left / down / up / right"),
             ("u / d", "Page up / down"),
             ("⌥ + hjkl  or  arrows", "Move pointer fast · 40 px"),
             ("Add ⇧ to either", "Move pointer slowly · 10 px"),
         ])
-        section("CLICK & DRAG", rows: [
+        section("SCROLL MODE — CLICK & DRAG", rows: [
             ("Return / Space", "Click or drop, then exit"),
             ("r / x", "Right-click / double-click, then exit"),
             ("v", "Start dragging; move and scroll as usual"),
