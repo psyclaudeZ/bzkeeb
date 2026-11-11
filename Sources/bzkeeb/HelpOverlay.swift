@@ -10,20 +10,19 @@ enum HelpOverlay {
         context.translateBy(x: bounds.midX - size.width * scale / 2, y: bounds.midY - size.height * scale / 2)
         context.scaleBy(x: scale, y: scale)
 
-        NSColor(calibratedWhite: 0.08, alpha: 0.97).setFill()
-        NSBezierPath(roundedRect: CGRect(origin: .zero, size: size), xRadius: 16, yRadius: 16).fill()
+        OverlayStyle.drawPanel(CGRect(origin: .zero, size: size))
 
-        func text(_ value: String, x: CGFloat = 28, y: CGFloat, font: NSFont, color: NSColor = .white) {
+        func text(_ value: String, x: CGFloat = 28, y: CGFloat, font: NSFont, color: NSColor = OverlayStyle.foreground) {
             NSAttributedString(string: value, attributes: [.font: font, .foregroundColor: color])
                 .draw(at: CGPoint(x: x, y: y))
         }
-        let body = NSFont.systemFont(ofSize: 15)
-        let keyFont = NSFont.monospacedSystemFont(ofSize: 15, weight: .medium)
-        text("Keyboard controls", y: 24, font: .systemFont(ofSize: 24, weight: .semibold))
+        let body = OverlayStyle.body
+        let keyFont = OverlayStyle.key
+        text("Keyboard controls", y: 24, font: OverlayStyle.title)
 
         var y: CGFloat = 68
         func section(_ title: String, rows: [(String, String)]) {
-            text(title, y: y, font: .systemFont(ofSize: 12, weight: .bold), color: .systemCyan)
+            text(title, y: y, font: OverlayStyle.heading, color: OverlayStyle.accent)
             y += 26
             for (key, action) in rows {
                 text(key, y: y, font: keyFont)

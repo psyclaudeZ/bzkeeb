@@ -472,21 +472,7 @@ private final class OverlayView: NSView {
     }
 
     private func drawStatus(_ text: String) {
-        let attributes: [NSAttributedString.Key: Any] = [
-            .font: NSFont.monospacedSystemFont(ofSize: 15, weight: .semibold),
-            .foregroundColor: NSColor.white,
-        ]
-        let string = NSAttributedString(string: text, attributes: attributes)
-        let textSize = string.size()
-        let box = CGRect(
-            x: (bounds.width - textSize.width) / 2 - 10,
-            y: bounds.height - textSize.height - 30,
-            width: textSize.width + 20,
-            height: textSize.height + 10
-        )
-        NSColor.black.withAlphaComponent(0.82).setFill()
-        NSBezierPath(roundedRect: box, xRadius: 6, yRadius: 6).fill()
-        string.draw(at: CGPoint(x: box.minX + 10, y: box.minY + 5))
+        OverlayStyle.drawLabel(text, in: bounds)
     }
 }
 
