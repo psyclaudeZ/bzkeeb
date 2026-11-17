@@ -723,6 +723,12 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
             return Unmanaged.passUnretained(event)
         }
 
+        if type == .mouseMoved || type == .leftMouseDragged
+            || type == .rightMouseDragged || type == .otherMouseDragged {
+            cursorEffects.followCursor(at: event.location)
+            return Unmanaged.passUnretained(event)
+        }
+
         if type == .leftMouseDown || type == .rightMouseDown || type == .otherMouseDown {
             // Generated clicks and drag starts must not cancel their own mode.
             if event.getIntegerValueField(.eventSourceUserData) != MouseController.eventMarker {
@@ -819,6 +825,10 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
             | (CGEventMask(1) << CGEventType.leftMouseDown.rawValue)
             | (CGEventMask(1) << CGEventType.rightMouseDown.rawValue)
             | (CGEventMask(1) << CGEventType.otherMouseDown.rawValue)
+            | (CGEventMask(1) << CGEventType.mouseMoved.rawValue)
+            | (CGEventMask(1) << CGEventType.leftMouseDragged.rawValue)
+            | (CGEventMask(1) << CGEventType.rightMouseDragged.rawValue)
+            | (CGEventMask(1) << CGEventType.otherMouseDragged.rawValue)
         let pointer = Unmanaged.passUnretained(self).toOpaque()
         guard let tap = CGEvent.tapCreate(
             tap: .cgSessionEventTap,
